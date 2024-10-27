@@ -1,0 +1,248 @@
+<!DOCTYPE html><html lang="zh-TW"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GFS Meteogram</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .plot {
+            margin-bottom: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .info {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>氣象預報圖表</h1>
+        <div class="info">
+            <p>澳門氣象站 (22.16°N, 113.57°E)</p>
+            <p>預報起始時間：2024-10-26 00:00 UTC</p>
+        </div>
+        <div id="temp" class="plot"></div>
+        <div id="humidity" class="plot"></div>
+        <div id="pressure" class="plot"></div>
+        <div id="wind" class="plot"></div>
+        <div id="cloud" class="plot"></div>
+        <div id="cape" class="plot"></div>
+        <div id="pwat" class="plot"></div>
+    </div>
+
+    <script>
+        // 讀取CSV數據
+        fetch('GFS_TG_forecast_20241026_00z.csv')
+            .then(response => response.text())
+            .then(data => {
+                // 解析CSV數據
+                const rows = data.trim().split('\n').slice(1);
+                const parsed = rows.map(row => {
+                    const columns = row.split(',');
+                    return {
+                        time: columns[2],
+                        temp: parseFloat(columns[3]),
+                        dewpoint: parseFloat(columns[4]),
+                        humidity: parseFloat(columns[5]),
+                        pressure: parseFloat(columns[6]),
+                        uwind: parseFloat(columns[7]),
+                        vwind: parseFloat(columns[8]),
+                        windSpeed: parseFloat(columns[9]),
+                        windDir: parseFloat(columns[10]),
+                        gust: parseFloat(columns[11]),
+                        totalCloud: parseFloat(columns[12]),
+                        lowCloud: parseFloat(columns[13]),
+                        midCloud: parseFloat(columns[14]),
+                        highCloud: parseFloat(columns[15]),
+                        cape: parseFloat(columns[17]),
+                        cin: parseFloat(columns[18]),
+                        pwat: parseFloat(columns[19])
+                    };
+                });
+
+                // 創建時間序列圖表
+                // 溫度和露點溫度
+                const tempTrace = {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.temp),
+                    name: '溫度',
+                    line: {color: 'red'},
+                    type: 'scatter'
+                };
+
+                const dewpointTrace = {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.dewpoint),
+                    name: '露點溫度',
+                    line: {color: 'green'},
+                    type: 'scatter'
+                };
+
+                Plotly.newPlot('temp', [tempTrace, dewpointTrace], {
+                    title: '溫度和露點溫度 (°C)',
+                    xaxis: {title: '時間'},
+                    yaxis: {title: '溫度 (°C)'},
+                    height: 300,
+                    margin: {t: 40}
+                });
+
+                // 相對濕度
+                const humidityTrace = {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.humidity),
+                    name: '相對濕度',
+                    line: {color: 'blue'},
+                    type: 'scatter',
+                    fill: 'tozeroy'
+                };
+
+                Plotly.newPlot('humidity', [humidityTrace], {
+                    title: '相對濕度 (%)',
+                    xaxis: {title: '時間'},
+                    yaxis: {title: '相對濕度 (%)'},
+                    height: 200,
+                    margin: {t: 40}
+                });
+
+                // 氣壓
+                const pressureTrace = {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.pressure),
+                    name: '氣壓',
+                    line: {color: 'purple'},
+                    type: 'scatter'
+                };
+
+                Plotly.newPlot('pressure', [pressureTrace], {
+                    title: '海平面氣壓 (hPa)',
+                    xaxis: {title: '時間'},
+                    yaxis: {title: '氣壓 (hPa)'},
+                    height: 200,
+                    margin: {t: 40}
+                });
+
+                // 風速和陣風
+                const windTrace = {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.windSpeed),
+                    name: '風速',
+                    line: {color: 'orange'},
+                    type: 'scatter'
+                };
+
+                const gustTrace = {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.gust),
+                    name: '陣風',
+                    line: {color: 'red', dash: 'dot'},
+                    type: 'scatter'
+                };
+
+                Plotly.newPlot('wind', [windTrace, gustTrace], {
+                    title: '風速和陣風 (m/s)',
+                    xaxis: {title: '時間'},
+                    yaxis: {title: '風速 (m/s)'},
+                    height: 200,
+                    margin: {t: 40}
+                });
+
+                // 雲量
+                const cloudTraces = [{
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.totalCloud),
+                    name: '總雲量',
+                    line: {color: 'black'},
+                    type: 'scatter'
+                }, {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.lowCloud),
+                    name: '低雲量',
+                    line: {color: 'blue'},
+                    type: 'scatter'
+                }, {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.midCloud),
+                    name: '中雲量',
+                    line: {color: 'green'},
+                    type: 'scatter'
+                }, {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.highCloud),
+                    name: '高雲量',
+                    line: {color: 'red'},
+                    type: 'scatter'
+                }];
+
+                Plotly.newPlot('cloud', cloudTraces, {
+                    title: '雲量 (%)',
+                    xaxis: {title: '時間'},
+                    yaxis: {title: '雲量 (%)'},
+                    height: 200,
+                    margin: {t: 40}
+                });
+
+                // CAPE和CIN
+                const capeTrace = {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.cape),
+                    name: 'CAPE',
+                    line: {color: 'red'},
+                    type: 'scatter'
+                };
+
+                const cinTrace = {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.cin),
+                    name: 'CIN',
+                    line: {color: 'blue'},
+                    type: 'scatter'
+                };
+
+                Plotly.newPlot('cape', [capeTrace, cinTrace], {
+                    title: 'CAPE和CIN (J/kg)',
+                    xaxis: {title: '時間'},
+                    yaxis: {title: '能量 (J/kg)'},
+                    height: 200,
+                    margin: {t: 40}
+                });
+
+                // 可降水量
+                const pwatTrace = {
+                    x: parsed.map(d => d.time),
+                    y: parsed.map(d => d.pwat),
+                    name: '可降水量',
+                    line: {color: 'blue'},
+                    type: 'scatter',
+                    fill: 'tozeroy'
+                };
+
+                Plotly.newPlot('pwat', [pwatTrace], {
+                    title: '可降水量 (mm)',
+                    xaxis: {title: '時間'},
+                    yaxis: {title: '可降水量 (mm)'},
+                    height: 200,
+                    margin: {t: 40}
+                });
+            });
+    </script>
+
+
+</body></html>
